@@ -1,43 +1,18 @@
-<!--
-
-    Copyright (C) 2016 Jeremy Custenborder (jcustenborder@gmail.com)
-
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
-    You may obtain a copy of the License at
-
-            http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing, software
-    distributed under the License is distributed on an "AS IS" BASIS,
-    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    See the License for the specific language governing permissions and
-    limitations under the License.
-
--->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<?xml version="1.0"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-
-    <prerequisites>
-        <maven>3.0.4</maven>
-    </prerequisites>
-
-    <groupId>io.confluent.kafka.connect</groupId>
-    <artifactId>kafka-connect-salesforce</artifactId>
-    <version>1.0-SNAPSHOT</version>
-    <packaging>jar</packaging>
-    <inceptionYear>2016</inceptionYear>
-    <name>kafka-connect-salesforce</name>
-
-    <url>https://github.com/jcustenborder/kafka-connect-salesforce</url>
-
     <parent>
         <groupId>com.github.jcustenborder.kafka.connect</groupId>
         <artifactId>kafka-connect-parent</artifactId>
         <version>0.10.1.0-cp1</version>
     </parent>
-
+    <artifactId>kafka-connect-salesforce</artifactId>
+    <version>0.2-SNAPSHOT</version>
+    <name>kafka-connect-salesforce</name>
+    <url>https://github.com/jcustenborder/kafka-connect-salesforce</url>
+    <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
             <name>The Apache License, Version 2.0</name>
@@ -45,22 +20,31 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
-
+    <developers>
+        <developer>
+            <name>Jeremy Custenborder</name>
+            <email>jeremy@confluent.io</email>
+            <url>https://api.github.com/users/jcustenborder</url>
+            <roles>
+                <role>maintainer</role>
+            </roles>
+        </developer>
+    </developers>
+    <prerequisites>
+        <maven>3.0.4</maven>
+    </prerequisites>
     <scm>
-        <url>https://github.com/jcustenborder/kafka-connect-salesforce</url>
         <connection>scm:git:https://github.com/jcustenborder/kafka-connect-salesforce.git</connection>
-        <developerConnection>scm:git:git://git@github.com:jcustenborder/kafka-connect-salesforce.git</developerConnection>
+        <developerConnection>scm:git:git@github.com:jcustenborder/kafka-connect-salesforce.git</developerConnection>
+        <url>https://api.github.com/repos/jcustenborder/kafka-connect-salesforce</url>
     </scm>
-
     <issueManagement>
-        <url>https://github.com/jcustenborder/kafka-connect-salesforce/issues</url>
         <system>github</system>
+        <url>https://api.github.com/repos/jcustenborder/kafka-connect-salesforce/issues</url>
     </issueManagement>
-
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.cometd.java</groupId>
@@ -78,8 +62,8 @@
             <version>1.22.0</version>
             <exclusions>
                 <exclusion>
-                    <groupId>com.fasterxml.jackson.core</groupId>
                     <artifactId>jackson-core</artifactId>
+                    <groupId>com.fasterxml.jackson.core</groupId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -89,5 +73,4 @@
             <version>2.2.3</version>
         </dependency>
     </dependencies>
-
 </project>
