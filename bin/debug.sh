@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright © 2016 Jeremy Custenborder (jcustenborder@gmail.com)
+# Copyright © 2017 Jeremy Custenborder (jcustenborder@gmail.com)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,9 +15,13 @@
 # limitations under the License.
 #
 
+
+: ${SUSPEND:='n'}
+
+set -e
+
 mvn clean package
+export KAFKA_JMX_OPTS="-Xdebug -agentlib:jdwp=transport=dt_socket,server=y,suspend=${SUSPEND},address=5005"
+export CLASSPATH="$(find target/kafka-connect-target/usr/share/java -type f -name '*.jar' | tr '\n' ':')"
 
-export CLASSPATH="$(find `pwd`/target/kafka-connect-salesforce-1.0-SNAPSHOT-package/share/java/ -type f -name '*.jar' | tr '\n' ':')"
-
-
-$CONFLUENT_HOME/bin/connect-standalone connect/connect-avro-docker.properties config/salesforce.activity.properties
+connect-standalone config/connect-avro-docker.properties config/salesforce.activity.properties

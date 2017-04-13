@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,11 +16,11 @@
 package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.DateTypeParser;
 import com.google.api.client.util.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
@@ -180,8 +180,17 @@ class SObjectHelper {
     Struct valueStruct = new Struct(valueSchema);
     convertStruct(sobjectNode, keySchema, keyStruct);
     convertStruct(sobjectNode, valueSchema, valueStruct);
+
+    final long timestamp;
+    java.util.Date date = (java.util.Date) valueStruct.get("SystemModstamp");
+    if (null != date) {
+      timestamp = date.getTime();
+    } else {
+      timestamp = System.currentTimeMillis();
+    }
+
     Map<String, Long> sourceOffset = ImmutableMap.of(pushTopicName, replayId);
-    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, keySchema, keyStruct, valueSchema, valueStruct);
+    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, keySchema, keyStruct, valueSchema, valueStruct, timestamp);
   }
 
 }

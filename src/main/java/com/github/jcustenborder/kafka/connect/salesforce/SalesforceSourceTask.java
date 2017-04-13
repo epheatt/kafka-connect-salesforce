@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,17 +15,16 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.ApiVersion;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
-import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClient;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClientFactory;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.ApiVersion;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.AuthenticationResponse;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
+import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectsResponse;
+import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordConcurrentLinkedDeque;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.repackaged.com.google.common.base.Preconditions;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
@@ -45,12 +44,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 
-public class SalesforceSourceTask extends SourceTask implements ClientSessionChannel.MessageListener {
+public class SalesforceSourceTask extends SourceTask {
   static final Logger log = LoggerFactory.getLogger(SalesforceSourceTask.class);
-  final ConcurrentLinkedDeque<SourceRecord> messageQueue = new ConcurrentLinkedDeque<>();
+  final SourceRecordConcurrentLinkedDeque messageQueue = new SourceRecordConcurrentLinkedDeque();
   SalesforceSourceConfig config;
   SalesforceRestClient salesforceRestClient;
   AuthenticationResponse authenticationResponse;
@@ -61,7 +59,6 @@ public class SalesforceSourceTask extends SourceTask implements ClientSessionCha
   BayeuxClient streamingClient;
   Schema keySchema;
   Schema valueSchema;
-  ObjectMapper objectMapper = new ObjectMapper();
 
   @Override
   public String version() {
@@ -92,6 +89,9 @@ public class SalesforceSourceTask extends SourceTask implements ClientSessionCha
 
     return new BayeuxClient(this.streamingUrl.toString(), transport);
   }
+
+  ClientSessionChannel topicChannel;
+  TopicChannelMessageListener topicChannelListener;
 
   @Override
   public void start(Map<String, String> map) {
@@ -130,11 +130,16 @@ public class SalesforceSourceTask extends SourceTask implements ClientSessionCha
 
     this.keySchema = SObjectHelper.keySchema(this.descriptor);
     this.valueSchema = SObjectHelper.valueSchema(this.descriptor);
+    this.topicChannelListener = new TopicChannelMessageListener(
+        this.messageQueue, this.config, this.keySchema, this.valueSchema
+    );
 
     this.streamingUrl = new GenericUrl(this.authenticationResponse.instance_url());
     this.streamingUrl.setRawPath(
         String.format("/cometd/%s", this.apiVersion.version())
     );
+
+    final String channel = String.format("/topic/%s", this.config.salesForcePushTopicName());
 
     if (log.isInfoEnabled()) {
       log.info("Configuring streaming url to {}", this.streamingUrl);
@@ -143,52 +148,39 @@ public class SalesforceSourceTask extends SourceTask implements ClientSessionCha
     this.streamingClient.getChannel(Channel.META_HANDSHAKE).addListener(new ClientSessionChannel.MessageListener() {
       @Override
       public void onMessage(ClientSessionChannel clientSessionChannel, Message message) {
-        if (log.isInfoEnabled()) {
-          log.info("onMessage - {}", message);
-        }
-        if (!message.isSuccessful()) {
-          if (log.isErrorEnabled()) {
-            log.error("Error during handshake: {} {}", message.get("error"), message.get("exception"));
+        log.info("onMessage(META_HANDSHAKE) - {}", message);
+
+        if (message.isSuccessful()) {
+          if (null == topicChannel) {
+            log.trace("onMessage(META_HANDSHAKE) - This is the first call to the topic channel.");
+            topicChannel = streamingClient.getChannel(channel);
           }
+
+          if (topicChannel.getSubscribers().isEmpty()) {
+            log.info("onMessage(META_HANDSHAKE) - Subscribing to {}", channel);
+            topicChannel.subscribe(topicChannelListener);
+          } else {
+            log.warn("onMessage(META_HANDSHAKE) - Already subscribed.");
+          }
+        } else {
+          log.error("Error during handshake: {} {}", message.get("error"), message.get("exception"));
         }
       }
     });
 
-    if (log.isInfoEnabled()) {
-      log.info("Starting handshake");
-    }
+    log.info("Starting handshake");
     this.streamingClient.handshake();
     if (!this.streamingClient.waitFor(30000, BayeuxClient.State.CONNECTED)) {
       throw new ConnectException("Not connected after 30,000 ms.");
     }
-
-    String channel = String.format("/topic/%s", this.config.salesForcePushTopicName());
-    if (log.isInfoEnabled()) {
-      log.info("Subscribing to {}", channel);
-    }
-    this.streamingClient.getChannel(channel).subscribe(this);
   }
 
   @Override
   public List<SourceRecord> poll() throws InterruptedException {
-    List<SourceRecord> records = new ArrayList<>(256);
+    List<SourceRecord> records = new ArrayList<>(1024);
 
-    while (records.isEmpty()) {
-      int size = messageQueue.size();
+    while (!this.messageQueue.drain(records)) {
 
-      for (int i = 0; i < size; i++) {
-        SourceRecord record = this.messageQueue.poll();
-
-        if (null == record) {
-          break;
-        }
-
-        records.add(record);
-      }
-
-      if (records.isEmpty()) {
-        Thread.sleep(100);
-      }
     }
 
     return records;
@@ -199,20 +191,5 @@ public class SalesforceSourceTask extends SourceTask implements ClientSessionCha
     this.streamingClient.disconnect();
   }
 
-  @Override
-  public void onMessage(ClientSessionChannel clientSessionChannel, Message message) {
-    try {
-      String jsonMessage = message.getJSON();
-      if (log.isDebugEnabled()) {
-        log.debug("message={}", jsonMessage);
-      }
-      JsonNode jsonNode = objectMapper.readTree(jsonMessage);
-      SourceRecord record = SObjectHelper.convert(jsonNode, this.config.salesForcePushTopicName(), this.config.kafkaTopic(), keySchema, valueSchema);
-      this.messageQueue.add(record);
-    } catch (Exception ex) {
-      if (log.isErrorEnabled()) {
-        log.error("Exception thrown while processing message.", ex);
-      }
-    }
-  }
+
 }
