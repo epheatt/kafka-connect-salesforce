@@ -15,7 +15,7 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
-import io.confluent.kafka.connect.utils.config.ValidPattern;
+import com.github.jcustenborder.kafka.connect.utils.config.ValidPattern;
 import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;

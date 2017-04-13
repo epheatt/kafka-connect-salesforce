@@ -16,11 +16,11 @@
 package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.github.jcustenborder.kafka.connect.utils.data.Parser;
+import com.github.jcustenborder.kafka.connect.utils.data.type.DateTypeParser;
 import com.google.api.client.util.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
-import io.confluent.kafka.connect.utils.data.Parser;
-import io.confluent.kafka.connect.utils.data.type.DateTypeParser;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
