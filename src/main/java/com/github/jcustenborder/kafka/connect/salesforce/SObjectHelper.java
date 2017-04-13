@@ -21,6 +21,8 @@ import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.DateTypeParser;
 import com.google.api.client.util.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import org.apache.kafka.common.utils.SystemTime;
+import org.apache.kafka.common.utils.Time;
 import org.apache.kafka.connect.data.Date;
 import org.apache.kafka.connect.data.Decimal;
 import org.apache.kafka.connect.data.Field;
@@ -42,11 +44,26 @@ class SObjectHelper {
   static final Map<String, ?> SOURCE_PARTITIONS = new HashMap<>();
   private static final Logger log = LoggerFactory.getLogger(SObjectHelper.class);
 
+  final SalesforceSourceConnectorConfig config;
+  final Schema keySchema;
+  final Schema valueSchema;
+  final Map<String, Object> sourcePartition;
+  Time time = new SystemTime();
+
   static {
     Parser p = new Parser();
-//    "2016-08-15T22:07:59.000Z"
     p.registerTypeParser(Timestamp.SCHEMA, new DateTypeParser(TimeZone.getTimeZone("UTC"), new SimpleDateFormat("YYYY-MM-dd'T'HH:mm:ss.SSS'Z'")));
     PARSER = p;
+  }
+
+  public SObjectHelper(SalesforceSourceConnectorConfig config, Schema keySchema, Schema valueSchema) {
+    this.config = config;
+    this.keySchema = keySchema;
+    this.valueSchema = valueSchema;
+    this.sourcePartition = ImmutableMap.of(
+        "pushTopic",
+        this.config.salesForcePushTopicName
+    );
   }
 
   public static boolean isTextArea(SObjectDescriptor.Field field) {
@@ -134,8 +151,15 @@ class SObjectHelper {
       builder.field(field.name(), schema);
     }
 
+    builder.field(FIELD_OBJECT_TYPE, Schema.OPTIONAL_STRING_SCHEMA);
+    builder.field(FIELD_EVENT_TYPE, Schema.OPTIONAL_STRING_SCHEMA);
+
     return builder.build();
   }
+
+  public static final String FIELD_OBJECT_TYPE = "_ObjectType";
+  public static final String FIELD_EVENT_TYPE = "_EventType";
+
 
   public static Schema keySchema(SObjectDescriptor descriptor) {
     String name = String.format("%s.%sKey", SObjectHelper.class.getPackage().getName(), descriptor.name());
@@ -160,37 +184,45 @@ class SObjectHelper {
     return builder.build();
   }
 
-  public static void convertStruct(JsonNode data, Schema schema, Struct struct) {
+  public void convertStruct(JsonNode sObjectNode, Schema schema, Struct struct) {
     for (Field field : schema.fields()) {
       String fieldName = field.name();
-      JsonNode valueNode = data.findValue(fieldName);
+      JsonNode valueNode = sObjectNode.findValue(fieldName);
       Object value = PARSER.parseJsonNode(field.schema(), valueNode);
       struct.put(field, value);
     }
   }
 
-  public static SourceRecord convert(JsonNode jsonNode, String pushTopicName, String topic, Schema keySchema, Schema valueSchema) {
+  public SourceRecord convert(JsonNode jsonNode) {
     Preconditions.checkNotNull(jsonNode);
     Preconditions.checkState(jsonNode.isObject());
     JsonNode dataNode = jsonNode.get("data");
     JsonNode eventNode = dataNode.get("event");
     JsonNode sobjectNode = dataNode.get("sobject");
-    long replayId = eventNode.get("replayId").asLong();
+    final long replayId = eventNode.get("replayId").asLong();
+    final String eventType = eventNode.get("type").asText();
     Struct keyStruct = new Struct(keySchema);
     Struct valueStruct = new Struct(valueSchema);
     convertStruct(sobjectNode, keySchema, keyStruct);
     convertStruct(sobjectNode, valueSchema, valueStruct);
+    valueStruct.put(FIELD_OBJECT_TYPE, this.config.salesForceObject);
+    valueStruct.put(FIELD_EVENT_TYPE, eventType);
+
 
     final long timestamp;
     java.util.Date date = (java.util.Date) valueStruct.get("SystemModstamp");
     if (null != date) {
       timestamp = date.getTime();
     } else {
-      timestamp = System.currentTimeMillis();
+      timestamp = this.time.milliseconds();
     }
 
-    Map<String, Long> sourceOffset = ImmutableMap.of(pushTopicName, replayId);
-    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, keySchema, keyStruct, valueSchema, valueStruct, timestamp);
+    String topic = this.config.kafkaTopicTemplate.execute(SalesforceSourceConnectorConfig.TEMPLATE_NAME, valueStruct);
+    if (this.config.kafkaTopicLowerCase) {
+      topic = topic.toLowerCase();
+    }
+    Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
+    return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct, this.valueSchema, valueStruct, timestamp);
   }
 
 }

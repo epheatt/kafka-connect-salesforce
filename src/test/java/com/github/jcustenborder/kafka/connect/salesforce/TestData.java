@@ -23,6 +23,8 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class TestData {
   private static final JsonFactory jsonFactory = new JacksonFactory();
@@ -42,6 +44,19 @@ public class TestData {
     } catch (IOException ex) {
       throw new IllegalStateException("Could not read", ex);
     }
+  }
+
+  public static Map<String, String> settings() {
+    Map<String, String> settings = new LinkedHashMap<>();
+    settings.put(SalesforceSourceConnectorConfig.CONSUMER_KEY_CONF, "sdfasdfasd");
+    settings.put(SalesforceSourceConnectorConfig.CONSUMER_SECRET_CONF, "sdfasdfasd");
+    settings.put(SalesforceSourceConnectorConfig.PASSWORD_CONF, "sdfasdfasd");
+    settings.put(SalesforceSourceConnectorConfig.PASSWORD_TOKEN_CONF, "sdfasdfasd");
+    settings.put(SalesforceSourceConnectorConfig.SALESFORCE_OBJECT_CONF, "Lead");
+    settings.put(SalesforceSourceConnectorConfig.USERNAME_CONF, "Lead");
+    settings.put(SalesforceSourceConnectorConfig.KAFKA_TOPIC_CONF, "salesforce.${__ObjectType}");
+    settings.put(SalesforceSourceConnectorConfig.SALESFORCE_PUSH_TOPIC_NAME_CONF, "Testing");
+    return settings;
   }
 
 }

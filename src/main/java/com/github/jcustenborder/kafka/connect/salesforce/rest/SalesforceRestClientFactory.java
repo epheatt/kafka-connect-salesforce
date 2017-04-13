@@ -15,11 +15,11 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce.rest;
 
-import com.github.jcustenborder.kafka.connect.salesforce.SalesforceSourceConfig;
+import com.github.jcustenborder.kafka.connect.salesforce.SalesforceSourceConnectorConfig;
 
 public class SalesforceRestClientFactory {
 
-  public static SalesforceRestClient create(SalesforceSourceConfig config) {
+  public static SalesforceRestClient create(SalesforceSourceConnectorConfig config) {
     return new SalesforceRestClientImpl(config);
   }
 

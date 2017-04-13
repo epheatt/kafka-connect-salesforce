@@ -49,7 +49,7 @@ import java.util.Map;
 public class SalesforceSourceTask extends SourceTask {
   static final Logger log = LoggerFactory.getLogger(SalesforceSourceTask.class);
   final SourceRecordConcurrentLinkedDeque messageQueue = new SourceRecordConcurrentLinkedDeque();
-  SalesforceSourceConfig config;
+  SalesforceSourceConnectorConfig config;
   SalesforceRestClient salesforceRestClient;
   AuthenticationResponse authenticationResponse;
   SObjectDescriptor descriptor;
@@ -68,7 +68,7 @@ public class SalesforceSourceTask extends SourceTask {
   BayeuxClient createClient() {
     SslContextFactory sslContextFactory = new SslContextFactory();
     HttpClient httpClient = new HttpClient(sslContextFactory);
-    httpClient.setConnectTimeout(this.config.connectTimeout());
+    httpClient.setConnectTimeout(this.config.connectTimeout);
     try {
       httpClient.start();
     } catch (Exception e) {
@@ -95,30 +95,30 @@ public class SalesforceSourceTask extends SourceTask {
 
   @Override
   public void start(Map<String, String> map) {
-    this.config = new SalesforceSourceConfig(map);
+    this.config = new SalesforceSourceConnectorConfig(map);
     this.salesforceRestClient = SalesforceRestClientFactory.create(this.config);
     this.authenticationResponse = this.salesforceRestClient.authenticate();
 
     List<ApiVersion> apiVersions = salesforceRestClient.apiVersions();
 
     for (ApiVersion v : apiVersions) {
-      if (this.config.version().equals(v.version())) {
+      if (this.config.version.equals(v.version())) {
         apiVersion = v;
         break;
       }
     }
 
-    Preconditions.checkNotNull(apiVersion, "Could not find ApiVersion '%s'", this.config.version());
+    Preconditions.checkNotNull(apiVersion, "Could not find ApiVersion '%s'", this.config.version);
     salesforceRestClient.apiVersion(apiVersion);
 
     SObjectsResponse sObjectsResponse = salesforceRestClient.objects();
 
     if (log.isInfoEnabled()) {
-      log.info("Looking for metadata for {}", this.config.salesForceObject());
+      log.info("Looking for metadata for {}", this.config.salesForceObject);
     }
 
     for (SObjectMetadata metadata : sObjectsResponse.sobjects()) {
-      if (this.config.salesForceObject().equals(metadata.name())) {
+      if (this.config.salesForceObject.equals(metadata.name())) {
         this.descriptor = salesforceRestClient.describe(metadata);
         this.metadata = metadata;
         break;
@@ -126,7 +126,7 @@ public class SalesforceSourceTask extends SourceTask {
     }
 
     //2013-05-06T00:00:00+00:00
-    Preconditions.checkNotNull(this.descriptor, "Could not find descriptor for '%s'", this.config.salesForceObject());
+    Preconditions.checkNotNull(this.descriptor, "Could not find descriptor for '%s'", this.config.salesForceObject);
 
     this.keySchema = SObjectHelper.keySchema(this.descriptor);
     this.valueSchema = SObjectHelper.valueSchema(this.descriptor);
@@ -139,7 +139,7 @@ public class SalesforceSourceTask extends SourceTask {
         String.format("/cometd/%s", this.apiVersion.version())
     );
 
-    final String channel = String.format("/topic/%s", this.config.salesForcePushTopicName());
+    final String channel = String.format("/topic/%s", this.config.salesForcePushTopicName);
 
     if (log.isInfoEnabled()) {
       log.info("Configuring streaming url to {}", this.streamingUrl);

@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,15 +28,17 @@ import org.slf4j.LoggerFactory;
 class TopicChannelMessageListener implements ClientSessionChannel.MessageListener {
   private static final Logger log = LoggerFactory.getLogger(TopicChannelMessageListener.class);
   private final SourceRecordConcurrentLinkedDeque records;
-  private final SalesforceSourceConfig config;
+  private final SalesforceSourceConnectorConfig config;
   private final Schema keySchema;
   private final Schema valueSchema;
+  private final SObjectHelper sObjectHelper;
 
-  TopicChannelMessageListener(SourceRecordConcurrentLinkedDeque records, SalesforceSourceConfig config, Schema keySchema, Schema valueSchema) {
+  TopicChannelMessageListener(SourceRecordConcurrentLinkedDeque records, SalesforceSourceConnectorConfig config, Schema keySchema, Schema valueSchema) {
     this.records = records;
     this.config = config;
     this.keySchema = keySchema;
     this.valueSchema = valueSchema;
+    this.sObjectHelper = new SObjectHelper(config, keySchema, valueSchema);
   }
 
   @Override
@@ -45,7 +47,7 @@ class TopicChannelMessageListener implements ClientSessionChannel.MessageListene
       String jsonMessage = message.getJSON();
       log.trace("onMessage() - jsonMessage = {}", jsonMessage);
       JsonNode jsonNode = ObjectMapperFactory.INSTANCE.readTree(jsonMessage);
-      SourceRecord record = SObjectHelper.convert(jsonNode, this.config.salesForcePushTopicName(), this.config.kafkaTopic(), keySchema, valueSchema);
+      SourceRecord record = this.sObjectHelper.convert(jsonNode);
       this.records.add(record);
     } catch (Exception ex) {
       log.error("Exception thrown while processing message.", ex);

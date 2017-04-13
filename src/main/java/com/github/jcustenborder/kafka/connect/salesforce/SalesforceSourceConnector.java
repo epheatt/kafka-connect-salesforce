@@ -41,7 +41,7 @@ import java.util.Set;
 public class SalesforceSourceConnector extends SourceConnector {
   private static Logger log = LoggerFactory.getLogger(SalesforceSourceConnector.class);
   List<Map<String, String>> configs = new ArrayList<>();
-  private SalesforceSourceConfig config;
+  private SalesforceSourceConnectorConfig config;
 
   @Override
   public String version() {
@@ -50,7 +50,7 @@ public class SalesforceSourceConnector extends SourceConnector {
 
   @Override
   public void start(Map<String, String> map) {
-    config = new SalesforceSourceConfig(map);
+    config = new SalesforceSourceConnectorConfig(map);
 
     SalesforceRestClient client = SalesforceRestClientFactory.create(this.config);
     client.authenticate();
@@ -64,33 +64,33 @@ public class SalesforceSourceConnector extends SourceConnector {
     SObjectDescriptor sObjectDescriptor = null;
 
     for (SObjectMetadata metadata : sObjectsResponse.sobjects()) {
-      if (this.config.salesForceObject().equalsIgnoreCase(metadata.name())) {
+      if (this.config.salesForceObject.equalsIgnoreCase(metadata.name())) {
         sObjectMetadata = metadata;
         sObjectDescriptor = client.describe(metadata);
         break;
       }
     }
 
-    Preconditions.checkNotNull(sObjectMetadata, "Could not find metadata for object '%s'", this.config.salesForceObject());
-    Preconditions.checkNotNull(sObjectDescriptor, "Could not find descriptor for object '%s'", this.config.salesForceObject());
+    Preconditions.checkNotNull(sObjectMetadata, "Could not find metadata for object '%s'", this.config.salesForceObject);
+    Preconditions.checkNotNull(sObjectDescriptor, "Could not find descriptor for object '%s'", this.config.salesForceObject);
 
     List<PushTopic> pushTopics = client.pushTopics();
     PushTopic pushTopic = null;
 
     for (PushTopic p : pushTopics) {
-      if (this.config.salesForcePushTopicName().equals(p.name())) {
+      if (this.config.salesForcePushTopicName.equals(p.name())) {
         pushTopic = p;
         break;
       }
     }
 
-    if (null == pushTopic && this.config.salesForcePushTopicCreate()) {
+    if (null == pushTopic && this.config.salesForcePushTopicCreate) {
       if (log.isWarnEnabled()) {
-        log.warn("PushTopic {} was not found.", this.config.salesForcePushTopicName());
+        log.warn("PushTopic {} was not found.", this.config.salesForcePushTopicName);
       }
 
       pushTopic = new PushTopic();
-      pushTopic.name(this.config.salesForcePushTopicName());
+      pushTopic.name(this.config.salesForcePushTopicName);
 
       Set<String> fields = new LinkedHashSet<>();
       for (SObjectDescriptor.Field f : sObjectDescriptor.fields()) {
@@ -109,10 +109,10 @@ public class SalesforceSourceConnector extends SourceConnector {
       if (log.isInfoEnabled()) {
         log.info("Setting query for {} to \n{}", pushTopic.name(), pushTopic.query());
       }
-      pushTopic.notifyForOperationCreate(this.config.salesForcePushTopicNotifyCreate());
-      pushTopic.notifyForOperationUpdate(this.config.salesForcePushTopicNotifyUpdate());
-      pushTopic.notifyForOperationDelete(this.config.salesForcePushTopicNotifyDelete());
-      pushTopic.notifyForOperationUndelete(this.config.salesForcePushTopicNotifyUndelete());
+      pushTopic.notifyForOperationCreate(this.config.salesForcePushTopicNotifyCreate);
+      pushTopic.notifyForOperationUpdate(this.config.salesForcePushTopicNotifyUpdate);
+      pushTopic.notifyForOperationDelete(this.config.salesForcePushTopicNotifyDelete);
+      pushTopic.notifyForOperationUndelete(this.config.salesForcePushTopicNotifyUndelete);
       pushTopic.apiVersion(new BigDecimal(apiVersion.version()));
 
       if (log.isInfoEnabled()) {
@@ -122,11 +122,11 @@ public class SalesforceSourceConnector extends SourceConnector {
       client.pushTopic(pushTopic);
     }
 
-    Preconditions.checkNotNull(pushTopic, "PushTopic '%s' was not found.", this.config.salesForcePushTopicName());
+    Preconditions.checkNotNull(pushTopic, "PushTopic '%s' was not found.", this.config.salesForcePushTopicName);
 
     Map<String, String> taskSettings = new HashMap<>();
     taskSettings.putAll(map);
-    taskSettings.put(SalesforceSourceConfig.VERSION_CONF, apiVersion.version());
+    taskSettings.put(SalesforceSourceConnectorConfig.VERSION_CONF, apiVersion.version());
     this.configs.add(taskSettings);
   }
 
@@ -148,6 +148,6 @@ public class SalesforceSourceConnector extends SourceConnector {
 
   @Override
   public ConfigDef config() {
-    return SalesforceSourceConfig.conf();
+    return SalesforceSourceConnectorConfig.conf();
   }
 }
