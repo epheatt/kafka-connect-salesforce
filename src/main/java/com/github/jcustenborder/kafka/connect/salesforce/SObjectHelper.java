@@ -50,6 +50,8 @@ class SObjectHelper {
   final Map<String, Object> sourcePartition;
   Time time = new SystemTime();
 
+  static final String ADDRESS_SCHEMA_NAME = String.format("%s.%s", SObjectHelper.class.getPackage().getName(), "Address");
+
   static {
     Parser p = new Parser();
     p.registerTypeParser(Timestamp.SCHEMA, new DateTypeParser(TimeZone.getTimeZone("UTC"), new SimpleDateFormat("YYYY-MM-dd'T'HH:mm:ss.SSS'Z'")));
@@ -87,7 +89,22 @@ class SObjectHelper {
         builder = Date.builder();
         break;
       case "address":
-        builder = SchemaBuilder.string();
+        builder = SchemaBuilder.struct()
+            .name(ADDRESS_SCHEMA_NAME)
+            .field(
+                "GeocodeAccuracy",
+                SchemaBuilder.string().optional().build()
+            )
+            .field(
+                "State",
+                SchemaBuilder.string().optional().doc("").build()
+            )
+            .field("Street", SchemaBuilder.string().optional().build())
+            .field("PostalCode", SchemaBuilder.string().optional().build())
+            .field("Country", SchemaBuilder.string().optional().build())
+            .field("Latitude", SchemaBuilder.float64().optional().build())
+            .field("City", SchemaBuilder.string().optional().build())
+            .field("Longitude", SchemaBuilder.float64().optional().build());
         break;
       case "string":
         builder = SchemaBuilder.string();
@@ -188,7 +205,19 @@ class SObjectHelper {
     for (Field field : schema.fields()) {
       String fieldName = field.name();
       JsonNode valueNode = sObjectNode.findValue(fieldName);
-      Object value = PARSER.parseJsonNode(field.schema(), valueNode);
+
+      final Object value;
+      if (ADDRESS_SCHEMA_NAME.equals(field.schema().name())) {
+        Struct address = new Struct(field.schema());
+        for (Field addressField : field.schema().fields()) {
+          JsonNode fieldValueNode = valueNode.findValue(addressField.name());
+          Object fieldValue = PARSER.parseJsonNode(addressField.schema(), fieldValueNode);
+          address.put(addressField, fieldValue);
+        }
+        value = address;
+      } else {
+        value = PARSER.parseJsonNode(field.schema(), valueNode);
+      }
       struct.put(field, value);
     }
   }

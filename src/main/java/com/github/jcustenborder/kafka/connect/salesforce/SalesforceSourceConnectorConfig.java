@@ -109,7 +109,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
         .define(SALESFORCE_OBJECT_CONF, Type.STRING, Importance.HIGH, SALESFORCE_OBJECT_DOC)
         .define(KAFKA_TOPIC_CONF, Type.STRING, Importance.HIGH, KAFKA_TOPIC_DOC)
         .define(KAFKA_TOPIC_LOWERCASE_CONF, Type.BOOLEAN, true, Importance.HIGH, KAFKA_TOPIC_LOWERCASE_DOC)
-        .define(CONNECTION_TIMEOUT_CONF, Type.LONG, 30000L, Importance.LOW, CONNECTION_TIMEOUT_DOC)
+        .define(CONNECTION_TIMEOUT_CONF, Type.LONG, 30000L, ConfigDef.Range.between(5 * 1000L, 600 * 1000L), Importance.LOW, CONNECTION_TIMEOUT_DOC)
         .define(VERSION_CONF, Type.STRING, "latest", ValidPattern.of("^(latest|[\\d\\.]+)$"), Importance.LOW, VERSION_DOC)
         .define(SALESFORCE_PUSH_TOPIC_NAME_CONF, Type.STRING, Importance.HIGH, SALESFORCE_PUSH_TOPIC_NAME_DOC)
         .define(SALESFORCE_PUSH_TOPIC_CREATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_CREATE_DOC)
