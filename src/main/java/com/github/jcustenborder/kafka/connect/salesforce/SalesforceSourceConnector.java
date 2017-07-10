@@ -15,6 +15,8 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
+import com.github.jcustenborder.kafka.connect.utils.VersionUtil;
+import com.github.jcustenborder.kafka.connect.utils.config.Description;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClient;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Description("The SalesforceSourceConnector is used to read changes from Salesforce in realtime.")
 public class SalesforceSourceConnector extends SourceConnector {
   private static Logger log = LoggerFactory.getLogger(SalesforceSourceConnector.class);
   List<Map<String, String>> configs = new ArrayList<>();
@@ -45,7 +48,7 @@ public class SalesforceSourceConnector extends SourceConnector {
 
   @Override
   public String version() {
-    return VersionUtil.getVersion();
+    return VersionUtil.version(this.getClass());
   }
 
   @Override

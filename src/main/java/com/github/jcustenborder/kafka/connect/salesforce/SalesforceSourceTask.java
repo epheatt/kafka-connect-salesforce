@@ -22,6 +22,7 @@ import com.github.jcustenborder.kafka.connect.salesforce.rest.model.Authenticati
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectMetadata;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectsResponse;
+import com.github.jcustenborder.kafka.connect.utils.VersionUtil;
 import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordConcurrentLinkedDeque;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.repackaged.com.google.common.base.Preconditions;
@@ -62,7 +63,7 @@ public class SalesforceSourceTask extends SourceTask {
 
   @Override
   public String version() {
-    return VersionUtil.getVersion();
+    return VersionUtil.version(this.getClass());
   }
 
   BayeuxClient createClient() {
