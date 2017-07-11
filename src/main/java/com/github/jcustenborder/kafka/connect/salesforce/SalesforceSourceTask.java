@@ -30,6 +30,7 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
+import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.cometd.bayeux.Channel;
 import org.cometd.bayeux.Message;
 import org.cometd.bayeux.client.ClientSessionChannel;
@@ -45,6 +46,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 
 public class SalesforceSourceTask extends SourceTask {
@@ -60,6 +63,7 @@ public class SalesforceSourceTask extends SourceTask {
   BayeuxClient streamingClient;
   Schema keySchema;
   Schema valueSchema;
+  private final ConcurrentMap<String, Long> replay = new ConcurrentHashMap<>();
 
   @Override
   public String version() {
@@ -156,7 +160,7 @@ public class SalesforceSourceTask extends SourceTask {
             log.trace("onMessage(META_HANDSHAKE) - This is the first call to the topic channel.");
             topicChannel = streamingClient.getChannel(channel);
           }
-
+          setReplayId(channel);
           if (topicChannel.getSubscribers().isEmpty()) {
             log.info("onMessage(META_HANDSHAKE) - Subscribing to {}", channel);
             topicChannel.subscribe(topicChannelListener);
@@ -167,8 +171,20 @@ public class SalesforceSourceTask extends SourceTask {
           log.error("Error during handshake: {} {}", message.get("error"), message.get("exception"));
         }
       }
+      
+      private void setReplayId(final String channel) {
+        replay.clear();
+        OffsetStorageReader offsetReader = context.offsetStorageReader();
+        Map<String, Object> partitionOffset = offsetReader.offset(new HashMap<>());
+        if (partitionOffset != null && partitionOffset.get("replayId") instanceof Long) {
+          Long sourceOffset = (Long) partitionOffset.get("replayId");
+          log.info("PushTopic {} - found stored offset {}", config.salesForcePushTopicName, sourceOffset);
+          replay.put(channel, sourceOffset);
+        }
+      }
     });
 
+    this.streamingClient.addExtension(new ReplayExtension(replay));
     log.info("Starting handshake");
     this.streamingClient.handshake();
     if (!this.streamingClient.waitFor(30000, BayeuxClient.State.CONNECTED)) {
