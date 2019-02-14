@@ -15,9 +15,11 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
+import java.util.concurrent.BlockingQueue;
+
 import com.fasterxml.jackson.databind.JsonNode;
-import com.github.jcustenborder.kafka.connect.utils.data.SourceRecordConcurrentLinkedDeque;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
+
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.cometd.bayeux.Message;
@@ -27,17 +29,11 @@ import org.slf4j.LoggerFactory;
 
 class TopicChannelMessageListener implements ClientSessionChannel.MessageListener {
   private static final Logger log = LoggerFactory.getLogger(TopicChannelMessageListener.class);
-  private final SourceRecordConcurrentLinkedDeque records;
-  private final SalesforceSourceConnectorConfig config;
-  private final Schema keySchema;
-  private final Schema valueSchema;
   private final SObjectHelper sObjectHelper;
+  private final BlockingQueue<SourceRecord> records;
 
-  TopicChannelMessageListener(SourceRecordConcurrentLinkedDeque records, SalesforceSourceConnectorConfig config, Schema keySchema, Schema valueSchema) {
+  TopicChannelMessageListener(BlockingQueue<SourceRecord> records, SalesforceSourceConnectorConfig config, Schema keySchema, Schema valueSchema) {
     this.records = records;
-    this.config = config;
-    this.keySchema = keySchema;
-    this.valueSchema = valueSchema;
     this.sObjectHelper = new SObjectHelper(config, keySchema, valueSchema);
   }
 
@@ -48,7 +44,7 @@ class TopicChannelMessageListener implements ClientSessionChannel.MessageListene
       log.trace("onMessage() - jsonMessage = {}", jsonMessage);
       JsonNode jsonNode = ObjectMapperFactory.INSTANCE.readTree(jsonMessage);
       SourceRecord record = this.sObjectHelper.convert(jsonNode);
-      this.records.add(record);
+      records.add(record);
     } catch (Exception ex) {
       log.error("Exception thrown while processing message.", ex);
     }

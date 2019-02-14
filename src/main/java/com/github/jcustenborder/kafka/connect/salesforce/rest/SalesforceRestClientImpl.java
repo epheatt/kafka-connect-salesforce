@@ -38,7 +38,7 @@ import com.google.api.client.http.json.JsonHttpContent;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.JsonObjectParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
-import com.google.api.client.repackaged.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +56,7 @@ class SalesforceRestClientImpl implements SalesforceRestClient {
   static final Logger log = LoggerFactory.getLogger(SalesforceRestClientImpl.class);
   static final JsonFactory JSON_FACTORY = new JacksonFactory();
   final SalesforceSourceConnectorConfig config;
-  final GenericUrl authenticateUrl = new GenericUrl("https://login.salesforce.com/services/oauth2/token");
+  final GenericUrl authenticateUrl;
   final HttpRequestFactory requestFactory;
   final HttpTransport httpTransport;
   AuthenticationResponse authentication;
@@ -69,6 +69,7 @@ class SalesforceRestClientImpl implements SalesforceRestClient {
 
   public SalesforceRestClientImpl(final SalesforceSourceConnectorConfig config, HttpTransport httpTransport) {
     this.config = config;
+    this.authenticateUrl = new GenericUrl(config.authenticationUrl);
     this.httpTransport = httpTransport;
     java.util.logging.Logger transportLogger = java.util.logging.Logger.getLogger(HttpTransport.class.getName());
     transportLogger.setLevel(Level.ALL);

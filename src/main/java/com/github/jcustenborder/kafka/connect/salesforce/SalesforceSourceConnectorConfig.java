@@ -47,6 +47,10 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public static final String KAFKA_TOPIC_CONF = "kafka.topic";
 
   public static final String CONNECTION_TIMEOUT_CONF = "connection.timeout";
+  public static final String SFDC_QUERY_FIELDS_CONF = "salesforce.topic.query.fields";
+  public static final String SFDC_AUTH_URL = "authenticationUrl";
+  public static final String SFDC_CONNECT_WAIT_MS = "wait_in_ms";
+  public static final String SFDC_CONNECT_MAX_RETRY_COUNT = "maxRetryCount";
 
   static final String VERSION_DOC = "The version of the salesforce API to use.";
   static final String USERNAME_DOC = "Salesforce username to connect with.";
@@ -70,6 +74,10 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
       "`" + SObjectHelper.FIELD_EVENT_TYPE + "` and `" + SObjectHelper.FIELD_OBJECT_TYPE + "` are two metadata fields that " +
       "are included on every record. For example you could put update and deletes in a different topic by using `salesforce.${_ObjectType}.${_EventType}`";
   static final String KAFKA_TOPIC_LOWERCASE_DOC = "Flag to determine if the kafka topic should be lowercased.";
+  static final String SFDC_QUERY_FIELDS_DOC = "Salesforce topic query fields.";
+  static final String SFDC_AUTH_URL_DOC = "Salesforce url to which authentication will happen";
+  static final String SFDC_CONNECT_WAIT_MS_DOC = "Waits for this BayeuxClient to reach the given state(s) within the given time.";
+  static final String SFDC_CONNECT_MAX_RETRY_COUNT_DOC = "Retry for this BayeuxClient to reach the given state(s) within the given time.";
 
   public SalesforceSourceConnectorConfig(Map<String, ?> parsedConfig) {
     super(conf(), parsedConfig);
@@ -90,8 +98,11 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
     this.salesForcePushTopicNotifyUndelete = this.getBoolean(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF);
     this.version = this.getString(VERSION_CONF);
     this.kafkaTopicLowerCase = getBoolean(KAFKA_TOPIC_LOWERCASE_CONF);
-    final String kafkaTopic = this.getString(KAFKA_TOPIC_CONF);
-
+    this.kafkaTopic = this.getString(KAFKA_TOPIC_CONF);
+    this.sfdcTopicQueryFields = this.getString(SFDC_QUERY_FIELDS_CONF);
+    this.authenticationUrl = this.getString(SFDC_AUTH_URL);
+    this.wait_in_ms=this.getLong(SFDC_CONNECT_WAIT_MS);
+    this.maxRetryCount=this.getInt(SFDC_CONNECT_MAX_RETRY_COUNT);
     StructTemplate template = new StructTemplate();
     template.addTemplate(TEMPLATE_NAME, kafkaTopic);
     this.kafkaTopicTemplate = template;
@@ -116,7 +127,12 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
         .define(SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_DOC)
         .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_DOC)
         .define(SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC);
+        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC)
+        .define(SFDC_QUERY_FIELDS_CONF, Type.STRING,"", Importance.LOW, SFDC_QUERY_FIELDS_DOC)
+        .define(SFDC_AUTH_URL, Type.STRING,"https://login.salesforce.com/services/oauth2/token", Importance.LOW, SFDC_AUTH_URL_DOC)
+        .define(SFDC_CONNECT_WAIT_MS, Type.LONG,60000L, Importance.LOW, SFDC_CONNECT_WAIT_MS_DOC)
+        .define(SFDC_CONNECT_MAX_RETRY_COUNT, Type.INT,3, Importance.LOW, SFDC_CONNECT_MAX_RETRY_COUNT_DOC);
+
   }
 
   public static final String TEMPLATE_NAME = "topicName";
@@ -138,5 +154,9 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public final boolean salesForcePushTopicNotifyUndelete;
   public final String version;
   public final boolean kafkaTopicLowerCase;
-
+  public final String sfdcTopicQueryFields;
+  public final String authenticationUrl;
+  public final long wait_in_ms;
+  public final int maxRetryCount;
+  public final String kafkaTopic;
 }
