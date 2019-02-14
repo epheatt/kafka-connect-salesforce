@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 
     Copyright © 2016 Jeremy Custenborder (jcustenborder@gmail.com)
@@ -16,10 +16,10 @@
     limitations under the License.
 
 -->
-<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-         xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
     <groupId>com.github.jcustenborder.kafka.connect</groupId>
     <artifactId>kafka-connect-salesforce</artifactId>
     <version>0.4-SNAPSHOT</version>
@@ -282,30 +282,11 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.5.1</version>
+				<version>3.5.1</version>
 				<inherited>true</inherited>
 				<configuration>
-					<source>8</source>
-					<target>8</target>
-					<compilerArguments>
-						<Xlint:all/>
-						<!-- bootstrap class path not set in conjunction with -source 1.7 -->
-						<Xlint:-options/>
-						<!-- serializable class ... has no definition of serialVersionUID -->
-						<Xlint:-serial/>
-						<!-- bad path element ".../repository/org/apache/derby/derby/10.10.2.0/derbyLocale_*.jar": no such file or directory -->
-						<Xlint:-path/>
-						<!--
-                        WALFile.java:[333,16] [deprecation] sync() in Syncable has been deprecated
-                        Apparently SuppressWarnings("deprecation") doesn't cover this on JDK 7
-                        -->
-						<Xlint:-deprecation/>
-						<!-- Needed for DataWriter.java because @SuppressWarnings("unchecked") doesn't cover this on JDK 7 -->
-						<Xlint:-unchecked/>
-						<Werror/>
-					</compilerArguments>
-					<showWarnings>true</showWarnings>
-					<showDeprecation>false</showDeprecation>
+					<source>1.8</source>
+					<target>1.8</target>
 				</configuration>
 			</plugin>
 		</plugins>
