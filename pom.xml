@@ -20,15 +20,12 @@
          xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <groupId>com.github.jcustenborder.kafka.connect</groupId>
-        <artifactId>kafka-connect-parent</artifactId>
-        <version>0.10.2.1-cp2</version>
-    </parent>
+    <groupId>com.github.jcustenborder.kafka.connect</groupId>
     <artifactId>kafka-connect-salesforce</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.4-SNAPSHOT</version>
+    <packaging>jar</packaging>
     <name>kafka-connect-salesforce</name>
-    <url>https://github.com/jcustenborder/kafka-connect-salesforce</url>
+    <url>https://github.com/epheatt/kafka-connect-salesforce</url>
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
@@ -39,27 +36,61 @@
     </licenses>
     <developers>
         <developer>
-            <name>Jeremy Custenborder</name>
-            <email>jeremy@confluent.io</email>
-            <url>https://api.github.com/users/jcustenborder</url>
+            <name>Eric Pheatt</name>
+            <url>https://api.github.com/users/epheatt</url>
             <roles>
                 <role>maintainer</role>
             </roles>
         </developer>
     </developers>
     <scm>
-        <connection>scm:git:https://github.com/jcustenborder/kafka-connect-salesforce.git</connection>
-        <developerConnection>scm:git:git@github.com:jcustenborder/kafka-connect-salesforce.git</developerConnection>
-        <url>https://api.github.com/repos/jcustenborder/kafka-connect-salesforce</url>
+        <connection>scm:git:https://github.com/epheatt/kafka-connect-salesforce.git</connection>
+        <developerConnection>scm:git:git@github.com:epheatt/kafka-connect-salesforce.git</developerConnection>
+        <url>https://api.github.com/repos/epheatt/kafka-connect-salesforce</url>
     </scm>
     <issueManagement>
         <system>github</system>
-        <url>https://api.github.com/repos/jcustenborder/kafka-connect-salesforce/issues</url>
+        <url>https://api.github.com/repos/epheatt/kafka-connect-salesforce/issues</url>
     </issueManagement>
     <properties>
+        <rpm.deploy.groupname>confluent</rpm.deploy.groupname>
+        <rpm.deploy.username>confluent</rpm.deploy.username>
+        <kafka.version>0.11.0.0-cp1</kafka.version>
+        <confluent.version>3.3.0</confluent.version>
+        <jackson.version>2.8.5</jackson.version>
+        <guava.version>20.0</guava.version>
+        <mockito.version>2.6.3</mockito.version>
+        <junit.version>5.0.0-M3</junit.version>
+        <junit.surefire.plugin.version>1.0.0-M3</junit.surefire.plugin.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>com.github.jcustenborder.kafka.connect</groupId>
+            <artifactId>connect-utils</artifactId>
+            <version>[0.2.33,0.2.1000)</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>connect-api</artifactId>
+            <version>${kafka.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>org.cometd.java</groupId>
             <artifactId>cometd-java-client</artifactId>
@@ -81,6 +112,144 @@
                 </exclusion>
             </exclusions>
         </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <id>confluent</id>
+            <url>http://packages.confluent.io/maven/</url>
+        </repository>
+    </repositories>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.0.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <createDependencyReducedPom>true</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <relocations>
+                                <relocation>
+                                    <pattern>com.fasterxml.jackson</pattern>
+                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.common</pattern>
+                                    <shadedPattern>shaded.com.google.common</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.google.guava</pattern>
+                                    <shadedPattern>shaded.com.google.guava</shadedPattern>
+                                </relocation>
+                            </relocations>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer" />
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>rpm-maven-plugin</artifactId>
+                <configuration>
+                    <group>sfkc</group>
+                    <mappings>
+                        <mapping>
+                            <directory>/opt/confluent/confluent-3.3.0/share/java/kafka-connect-sfdc</directory>
+                            <filemode>755</filemode>
+                            <username>${rpm.deploy.username}</username>
+                            <groupname>${rpm.deploy.groupname}</groupname>
+                            <directoryIncluded>false</directoryIncluded>
+                            <sources>
+                                <source>
+                                    <location>${project.basedir}/target/${project.artifactId}-${project.version}.jar</location>
+                                </source>
+                            </sources>
+                        </mapping>
+                    </mappings>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-property</id>
+                        <goals>
+                            <goal>version</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                    <execution>
+                        <id>generate-rpm</id>
+                        <goals>
+                            <goal>attached-rpm</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.0.2</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.5.1</version>
+                <inherited>true</inherited>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 

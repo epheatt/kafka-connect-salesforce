@@ -15,8 +15,6 @@
  */
 package com.github.jcustenborder.kafka.connect.salesforce;
 
-import com.github.jcustenborder.kafka.connect.utils.VersionUtil;
-import com.github.jcustenborder.kafka.connect.utils.config.Description;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.SalesforceRestClient;
@@ -40,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@Description("The SalesforceSourceConnector is used to read changes from Salesforce in realtime.")
 public class SalesforceSourceConnector extends SourceConnector {
   private static Logger log = LoggerFactory.getLogger(SalesforceSourceConnector.class);
   List<Map<String, String>> configs = new ArrayList<>();
@@ -48,7 +45,7 @@ public class SalesforceSourceConnector extends SourceConnector {
 
   @Override
   public String version() {
-    return VersionUtil.version(this.getClass());
+    return VersionUtil.getVersion();
   }
 
   @Override
@@ -95,12 +92,33 @@ public class SalesforceSourceConnector extends SourceConnector {
       pushTopic = new PushTopic();
       pushTopic.name(this.config.salesForcePushTopicName);
 
-      Set<String> fields = new LinkedHashSet<>();
+      String configSfdcTopicQueryFields = this.config.sfdcTopicQueryFields;
+      if (log.isInfoEnabled()) {
+          log.info("SFDC topic query fields {} are passed from configuration  for topic \n{}", configSfdcTopicQueryFields,pushTopic.name());
+      }
+
+      Set<String> allFields = new LinkedHashSet<>();
       for (SObjectDescriptor.Field f : sObjectDescriptor.fields()) {
         if (SObjectHelper.isTextArea(f)) {
           continue;
         }
-        fields.add(f.name());
+        allFields.add(f.name());
+      }
+
+      Set<String> fields = new LinkedHashSet<>();
+      if(configSfdcTopicQueryFields!=null && !configSfdcTopicQueryFields.isEmpty()){
+          String[] sfdcTopicQueryfields = configSfdcTopicQueryFields.split(",");
+          String trimmedField;
+          for(String field:sfdcTopicQueryfields){
+              trimmedField = field.trim();
+              if(allFields.contains(trimmedField)){
+                  fields.add(trimmedField);
+              } else {
+                  log.info("Field {} is not valid for entity {}", trimmedField, this.config.salesForceObject);
+              }
+          }
+      } else {
+          fields.addAll(allFields);
       }
 
       String query = String.format(
