@@ -1,0 +1,32 @@
+{
+  "data": {
+    "schema": "IeRuaY6cbI_HsV8Rv1Mc5g",
+    "payload": {
+      "ChangeEventHeader": {
+        "entityName": "Account",
+        "recordIds": [
+          "<record_ID>"
+        ],
+        "changeType": "CREATE",
+        "changeOrigin": "com/salesforce/api/soap/44.0;client=Astro",
+        "transactionKey": "001b7375-0086-250e-e6ca-b99bc3a8b69f",
+        "sequenceNumber": 1,
+        "isTransactionEnd": true,
+        "commitTimestamp": 1501010206653,
+        "commitNumber": 92847272780,
+        "commitUser": "<User_ID>"
+      },
+      "Name": "Acme",
+      "Description": "Everyone is talking about the cloud. But what does it mean?",
+      "OwnerId": "<Owner_ID>",
+      "CreatedDate": "2017-07-25T19:16:44Z",
+      "CreatedById": "<User_ID>",
+      "LastModifiedDate": "2017-07-25T19:16:44Z",
+      "LastModifiedById": "<User_ID>"
+    },
+    "event": {
+      "replayId": 6
+    }
+  },
+  "channel": "/data/ChangeEvents"
+}

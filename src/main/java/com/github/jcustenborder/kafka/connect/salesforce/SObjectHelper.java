@@ -16,9 +16,12 @@
 package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.TimestampTypeParser;
+import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import org.apache.kafka.common.utils.SystemTime;
@@ -44,6 +47,7 @@ class SObjectHelper {
 	static final Map<String, ?> SOURCE_PARTITIONS = new HashMap<>();
 	private static final Logger log = LoggerFactory.getLogger(SObjectHelper.class);
 
+	private static final ObjectMapper mapper = new ObjectMapper();
 	final SalesforceSourceConnectorConfig config;
 	final Schema keySchema;
 	final Schema valueSchema;
@@ -51,7 +55,8 @@ class SObjectHelper {
 	final static Map<String,String> binaryCharMap = new HashMap<>();
 	Time time = new SystemTime();
 
-	static final String ADDRESS_SCHEMA_NAME = String.format("%s.%s", SObjectHelper.class.getPackage().getName(),
+	static final String ADDRESS_SCHEMA_NAME = String.format("%s.%s",
+			SObjectHelper.class.getPackage().getName(),
 			"Address");
 
 	static {
@@ -93,33 +98,56 @@ class SObjectHelper {
 		binaryCharMap.put("11111","5");
 	}
 
+	public SObjectHelper(SalesforceSourceConnectorConfig config) {
+		this.config = config;
+		this.sourcePartition = ImmutableMap.of("channel", this.config.salesForceChannel);
+		this.keySchema = Schema.STRING_SCHEMA;
+		this.valueSchema = Schema.STRING_SCHEMA;
+	}
+
 	public SObjectHelper(SalesforceSourceConnectorConfig config, Schema keySchema, Schema valueSchema) {
 		this.config = config;
 		this.keySchema = keySchema;
 		this.valueSchema = valueSchema;
-		this.sourcePartition = ImmutableMap.of("pushTopic", this.config.salesForcePushTopicName);
+		this.sourcePartition = ImmutableMap.of("channel", this.config.salesForceChannel);
 	}
 
 	public static boolean isTextArea(SObjectDescriptor.Field field) {
 		return "textarea".equalsIgnoreCase(field.type());
 	}
 
+	public static boolean isAddress(SObjectDescriptor.Field field) {
+		return "address".equalsIgnoreCase(field.type());
+	}
+
+	public static boolean isLocation(SObjectDescriptor.Field field) {
+		return "location".equalsIgnoreCase(field.type());
+	}
+
 	public static Schema schema(SObjectDescriptor.Field field) {
 		SchemaBuilder builder = null;
 
 		boolean optional = true;
-		boolean referenceType = false;
 
 		switch (field.type()) {
 		case "id":
 			optional = false;
-			builder = SchemaBuilder.string().doc("Unique identifier for the object.");
+			builder = SchemaBuilder.string().required();
 			break;
 		case "boolean":
 			builder = SchemaBuilder.bool();
 			break;
-		case "date":
-			builder = SchemaBuilder.string().doc("Value will be in Date string format.");
+		case "int":
+			builder = SchemaBuilder.int32();
+			break;
+		case "string":
+		case "phone":
+		case "email":
+		case "textarea":
+		case "url":
+		case "picklist":
+		case "multipicklist":
+			builder = SchemaBuilder.string();
 			break;
 		case "address":
 			builder = SchemaBuilder.struct().name(ADDRESS_SCHEMA_NAME)
@@ -132,60 +160,69 @@ class SObjectHelper {
 					.field("City", SchemaBuilder.string().optional().build())
 					.field("Longitude", SchemaBuilder.float64().optional().build());
 			break;
-		case "string":
-			builder = SchemaBuilder.string();
-			break;
-		case "double":
-			builder = SchemaBuilder.float64();
-			break;
-		case "picklist":
-			builder = SchemaBuilder.string();
-			break;
-		case "textarea":
-			builder = SchemaBuilder.string();
-			break;
-		case "url":
-			builder = SchemaBuilder.string();
-			break;
-		case "int":
-			builder = SchemaBuilder.int32();
-			break;
 		case "reference":
 			builder = SchemaBuilder.string();
-			referenceType = true;
+			builder.parameter("salesforce.relationshipName",field.relationshipName());
+			builder.parameter("salesforce.referenceTo",field.referenceTo().toString());
+			//builder.parameter("salesforce.polymorphicForeignKey",field.polymorphicForeignKey().toString());
+			break;
+		case "date":
+			builder = SchemaBuilder.string();
+			builder.parameter("salesforce.dateFormat","yyyy-MM-dd");
 			break;
 		case "datetime":
-			builder = SchemaBuilder.string().doc("Value will be in DateTime string format.");
-			break;
-		case "phone":
 			builder = SchemaBuilder.string();
-			break;
-		case "currency":
-			builder = SchemaBuilder.float64();
-			break;
-		case "email":
-			builder = SchemaBuilder.string();
-			break;
-		case "decimal":
-			builder = Decimal.builder(field.scale());
+			builder.parameter("salesforce.dateFormat","yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");
 			break;
 		case "percent":
-                        builder = SchemaBuilder.float64();
-                        break;
-		case "multipicklist":
-                        builder = SchemaBuilder.string();
-                        break;
+		case "double":
+		case "currency":
+		case "decimal":
+			builder = Decimal.builder(field.scale());
+			builder.parameter("salesforce.scale", field.scale().toString());
+			break;
 		default:
 			throw new UnsupportedOperationException(
 					String.format("Field type '%s' for field '%s' is not supported", field.type(), field.name()));
 		}
-
 		if (optional) {
-			builder = builder.optional();
+			builder.optional();
 		}
-                if (referenceType) {
-                        builder = builder.parameter("referenceType", "true");
-                }
+		builder.parameter("salesforce.type", field.type());
+		if (field.label() != null) {
+			builder.doc(field.label());
+		}
+		if (field.nillable() != null) {
+			builder.parameter("salesforce.nillable", field.nillable().toString());
+		}
+		if (field.createable() != null) {
+			builder.parameter("salesforce.createable", field.createable().toString());
+		}
+		if (field.updateable() != null) {
+			builder.parameter("salesforce.updateable", field.updateable().toString());
+		}
+		if (field.externalId()) {
+			builder.parameter("salesforce.externalId", field.externalId().toString());
+		}
+		if (field.idLookup()) {
+			builder.parameter("salesforce.idLookup", field.idLookup().toString());
+		}
+		if (field.unique()) {
+			builder.parameter("salesforce.unique", field.unique().toString());
+		}
+		if (field.precision() != null && field.precision() > 0) {
+			builder.parameter("salesforce.precision", field.precision().toString());
+		}
+		if (field.digits() != null && field.digits() > 0) {
+			builder.parameter("salesforce.digits", field.digits().toString());
+		}
+		if (field.length() != null && field.length() > 0) {
+			builder.parameter("salesforce.length", field.length().toString());
+		}
+		//if (field.defaultValue() != null && field.defaultValue() instanceof String) {
+		//	builder.defaultValue(field.defaultValue().toString());
+		//}
+
 		return builder.build();
 	}
 
@@ -195,7 +232,7 @@ class SObjectHelper {
 		builder.name(name);
 
 		for (SObjectDescriptor.Field field : descriptor.fields()) {
-			if (isTextArea(field)) {
+			if (isAddress(field) || isLocation(field)) {
 				continue;
 			}
 			Schema schema = schema(field);
@@ -234,9 +271,20 @@ class SObjectHelper {
 		return builder.build();
 	}
 
+	public JsonNode defaultMissingOptional(Schema schema, JsonNode jsonValue) {
+		ObjectNode returnNode = mapper.createObjectNode();
+		for (Field field : schema.fields()) {
+			String fieldName = field.name();
+			Schema fieldSchema = field.schema();
+			returnNode.set(fieldName,jsonValue.get(fieldName));
+		}
+		return returnNode;
+	}
+
 	public void convertStruct(JsonNode sObjectNode, Schema schema, Struct struct) {
 		for (Field field : schema.fields()) {
 			String fieldName = field.name();
+			Schema fieldSchema = field.schema();
 			JsonNode valueNode = sObjectNode.findValue(fieldName);
 
 			Object value;
@@ -251,10 +299,9 @@ class SObjectHelper {
 			} else {
 				value = PARSER.parseJsonNode(field.schema(), valueNode);
 			}
-
-                        if (field.schema().parameters() != null && field.schema().parameters().containsKey("referenceType")) {
-                                 value = convertReferenceFieldValue(value);
-                        }
+			if (fieldSchema.parameters() != null && fieldSchema.parameters().getOrDefault("salesforce.type",fieldSchema.type().getName()).equalsIgnoreCase("reference")) {
+				value = convertReferenceFieldValue(value);
+			}
 			struct.put(field, value);
 		}
 	}
@@ -294,18 +341,19 @@ class SObjectHelper {
         return "";
     }
 
-
-
+	@SuppressWarnings("deprecation")
 	public SourceRecord convert(JsonNode jsonNode) {
 		Preconditions.checkNotNull(jsonNode);
 		Preconditions.checkState(jsonNode.isObject());
 		JsonNode dataNode = jsonNode.get("data");
 		JsonNode eventNode = dataNode.get("event");
-		JsonNode sobjectNode = dataNode.get("sobject");
 		final long replayId = eventNode.get("replayId").asLong();
+		Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
+		if (!config.salesForceChangeEventEnable) {
 		final String eventType = eventNode.get("type").asText();
 		Struct keyStruct = new Struct(keySchema);
 		Struct valueStruct = new Struct(valueSchema);
+		JsonNode sobjectNode = dataNode.get("sobject");
 		convertStruct(sobjectNode, keySchema, keyStruct);
 		convertStruct(sobjectNode, valueSchema, valueStruct);
 		valueStruct.put(FIELD_OBJECT_TYPE, this.config.salesForceObject);
@@ -316,9 +364,41 @@ class SObjectHelper {
 		if (this.config.kafkaTopicLowerCase) {
 			topic = topic.toLowerCase();
 		}
-		Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
-		return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct,
-				this.valueSchema, valueStruct, this.time.milliseconds());
+		if (this.config.enableSchemas) {
+			return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct,
+					this.valueSchema, valueStruct, this.time.milliseconds());
+		}
+		ObjectNode payload = mapper.createObjectNode();
+		payload.set("sobject",dataNode.get("sobject"));
+		ObjectNode event = (ObjectNode) dataNode.get("event");
+		event.put("entityName",this.config.salesForceObject);
+		payload.set("event", event);
+		return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, Schema.STRING_SCHEMA, keyStruct.getString("Id"),
+				null, payload, this.time.milliseconds());
+		} else {
+			ObjectNode valueNode = mapper.createObjectNode();
+			ObjectNode payloadNode = (ObjectNode) dataNode.get("payload");
+			JsonNode eventHeaders = payloadNode.remove("ChangeEventHeader");
+			ObjectNode event = (ObjectNode) dataNode.get("event");
+			event.putAll((ObjectNode) eventHeaders);
+			valueNode.set("event", event);
+			valueNode.set("sobject",payloadNode);
+			Schema topicSchema = SchemaBuilder.struct()
+					.field("entityName", Schema.STRING_SCHEMA)
+					.field("changeType", Schema.STRING_SCHEMA)
+					.build();
+			Struct topicStruct = new Struct(topicSchema);
+			topicStruct.put("entityName",eventHeaders.get("entityName").asText());
+			topicStruct.put("changeType",eventHeaders.get("changeType").asText());
+			String topic = this.config.kafkaTopicTemplate.execute(SalesforceSourceConnectorConfig.TEMPLATE_NAME,topicStruct);
+			if (this.config.kafkaTopicLowerCase) {
+				topic = topic.toLowerCase();
+			}
+			return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null,
+					Schema.STRING_SCHEMA, eventHeaders.get("recordIds").get(0).asText(),
+					null, valueNode,
+					this.time.milliseconds());
+		}
 	}
 
 }

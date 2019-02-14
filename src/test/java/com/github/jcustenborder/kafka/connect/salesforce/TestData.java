@@ -38,8 +38,24 @@ public class TestData {
     }
   }
 
-  public static JsonNode salesForceEvent() {
-    try (InputStream inputStream = TestData.class.getResourceAsStream("salesforceevent.json")) {
+  public static JsonNode salesForceChangeEvent() {
+    try (InputStream inputStream = TestData.class.getResourceAsStream("changeevent.json")) {
+      return objectMapper.readTree(inputStream);
+    } catch (IOException ex) {
+      throw new IllegalStateException("Could not read", ex);
+    }
+  }
+
+  public static JsonNode salesForceEventSchema() {
+    try (InputStream inputStream = TestData.class.getResourceAsStream("eventschema.json")) {
+      return objectMapper.readTree(inputStream);
+    } catch (IOException ex) {
+      throw new IllegalStateException("Could not read", ex);
+    }
+  }
+
+  public static JsonNode salesForcePushTopic() {
+    try (InputStream inputStream = TestData.class.getResourceAsStream("salesforcepushtopic.json")) {
       return objectMapper.readTree(inputStream);
     } catch (IOException ex) {
       throw new IllegalStateException("Could not read", ex);
@@ -54,7 +70,7 @@ public class TestData {
     settings.put(SalesforceSourceConnectorConfig.PASSWORD_TOKEN_CONF, "sdfasdfasd");
     settings.put(SalesforceSourceConnectorConfig.SALESFORCE_OBJECT_CONF, "Lead");
     settings.put(SalesforceSourceConnectorConfig.USERNAME_CONF, "Lead");
-    settings.put(SalesforceSourceConnectorConfig.KAFKA_TOPIC_CONF, "salesforce.${__ObjectType}");
+    settings.put(SalesforceSourceConnectorConfig.KAFKA_TOPIC_CONF, "salesforce.${_ObjectType}");
     settings.put(SalesforceSourceConnectorConfig.SALESFORCE_PUSH_TOPIC_NAME_CONF, "Testing");
     return settings;
   }

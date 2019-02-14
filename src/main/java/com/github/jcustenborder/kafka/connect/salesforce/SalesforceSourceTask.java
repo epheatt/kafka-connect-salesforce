@@ -125,6 +125,7 @@ public class SalesforceSourceTask extends SourceTask {
         Preconditions.checkNotNull(apiVersion, "Could not find ApiVersion '%s'", this.config.version);
         salesforceRestClient.apiVersion(apiVersion);
 
+        if (!this.config.salesForceChangeEventEnable) {
         SObjectsResponse sObjectsResponse = salesforceRestClient.objects();
 
         if (log.isInfoEnabled()) {
@@ -144,13 +145,17 @@ public class SalesforceSourceTask extends SourceTask {
 
         this.keySchema = SObjectHelper.keySchema(this.descriptor);
         this.valueSchema = SObjectHelper.valueSchema(this.descriptor);
+        } else {
+            this.keySchema = Schema.STRING_SCHEMA;
+            this.valueSchema = Schema.STRING_SCHEMA;
+        }
         this.topicChannelListener = new TopicChannelMessageListener(this.messageQueue, this.config, this.keySchema,
                 this.valueSchema);
 
         this.streamingUrl = new GenericUrl(this.authenticationResponse.instance_url());
         this.streamingUrl.setRawPath(String.format("/cometd/%s", this.apiVersion.version()));
 
-        final String channel = String.format("/topic/%s", this.config.salesForcePushTopicName);
+        final String channel = this.config.salesForceChannel;//String.format("/topic/%s", this.config.salesForcePushTopicName);
 
         if (log.isInfoEnabled()) {
             log.info("Configuring streaming url to {}", this.streamingUrl);
@@ -218,7 +223,7 @@ public class SalesforceSourceTask extends SourceTask {
                 Map<String, Object> partitionOffset = offsetReader.offset(new HashMap<>());
                 if (partitionOffset != null && partitionOffset.get("replayId") instanceof Long) {
                     Long sourceOffset = (Long) partitionOffset.get("replayId");
-                    log.info("kafka topic {}'s connector PushTopic {} - found stored offset {}",config.kafkaTopic, config.salesForcePushTopicName, sourceOffset);
+                    log.info("kafka topic {}'s connector channel {} - found stored offset {}",config.kafkaTopic, channel, sourceOffset);
                     replay.put(channel, sourceOffset);
                 }
             }

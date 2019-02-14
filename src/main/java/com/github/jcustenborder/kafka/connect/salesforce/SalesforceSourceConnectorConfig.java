@@ -34,6 +34,8 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public static final String CONSUMER_SECRET_CONF = "salesforce.consumer.secret";
   public static final String INSTANCE_CONF = "salesforce.instance";
   public static final String CURL_LOGGING_CONF = "curl.logging";
+  public static final String SALESFORCE_CHANNEL_CONF = "salesforce.channel";
+  public static final String SALESFORCE_CHANGE_EVENT_ENABLE_CONFIG = "salesforce.change.event.enable";
   public static final String SALESFORCE_PUSH_TOPIC_NAME_CONF = "salesforce.push.topic.name";
   public static final String SALESFORCE_PUSH_TOPIC_CREATE_CONF = "salesforce.push.topic.create";
   public static final String SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF = "salesforce.push.topic.notify.create";
@@ -45,6 +47,12 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public static final String SALESFORCE_OBJECT_CONF = "salesforce.object";
   public static final String KAFKA_TOPIC_LOWERCASE_CONF = "kafka.topic.lowercase";
   public static final String KAFKA_TOPIC_CONF = "kafka.topic";
+
+  public static final String SCHEMAS_ENABLE_CONFIG = "schemas.enable";
+  public static final boolean SCHEMAS_ENABLE_DEFAULT = true;
+  public static final String SCHEMAS_CACHE_SIZE_CONFIG = "schemas.cache.size";
+  public static final int SCHEMAS_CACHE_SIZE_DEFAULT = 1000;
+  public static final String TYPE_CONFIG = "converter.type";
 
   public static final String CONNECTION_TIMEOUT_CONF = "connection.timeout";
   public static final String SFDC_QUERY_FIELDS_CONF = "salesforce.topic.query.fields";
@@ -61,6 +69,8 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   static final String INSTANCE_DOC = "The Salesforce instance to connect to.";
   static final String CURL_LOGGING_DOC = "If enabled the logs will output the equivalent curl commands. This is a security risk because your authorization header will end up in the log file. Use at your own risk.";
   static final String CONNECTION_TIMEOUT_DOC = "The amount of time to wait while connecting to the Salesforce streaming endpoint.";
+  static final String SALESFORCE_CHANNEL_DOC = "The Salesforce Channel to subscribe to.";
+  static final String SALESFORCE_CHANGE_EVENT_ENABLE_CONFIG_DOC = "Flag to determine if Change Events should be subscribed to.";
   static final String SALESFORCE_PUSH_TOPIC_NAME_DOC = "The Salesforce topic to subscribe to. If " + SALESFORCE_PUSH_TOPIC_CREATE_CONF +
       " is set to true, a PushTopic with this name will be created.";
   static final String SALESFORCE_PUSH_TOPIC_CREATE_DOC = "Flag to determine if the PushTopic should be created if it does not exist.";
@@ -74,6 +84,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
       "`" + SObjectHelper.FIELD_EVENT_TYPE + "` and `" + SObjectHelper.FIELD_OBJECT_TYPE + "` are two metadata fields that " +
       "are included on every record. For example you could put update and deletes in a different topic by using `salesforce.${_ObjectType}.${_EventType}`";
   static final String KAFKA_TOPIC_LOWERCASE_DOC = "Flag to determine if the kafka topic should be lowercased.";
+  static final String SCHEMAS_ENABLE_CONFIG_DOC = "Include schemas within each of the serialized values and keys.";
   static final String SFDC_QUERY_FIELDS_DOC = "Salesforce topic query fields.";
   static final String SFDC_AUTH_URL_DOC = "Salesforce url to which authentication will happen";
   static final String SFDC_CONNECT_WAIT_MS_DOC = "Waits for this BayeuxClient to reach the given state(s) within the given time.";
@@ -86,23 +97,31 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
     this.passwordToken = this.getPassword(PASSWORD_TOKEN_CONF).value();
     this.consumerKey = this.getString(CONSUMER_KEY_CONF);
     this.consumerSecret = this.getPassword(CONSUMER_SECRET_CONF).value();
+    this.connectTimeout = this.getLong(CONNECTION_TIMEOUT_CONF);
+    this.authenticationUrl = this.getString(SFDC_AUTH_URL);
+    this.wait_in_ms = this.getLong(SFDC_CONNECT_WAIT_MS);
+    this.maxRetryCount = this.getInt(SFDC_CONNECT_MAX_RETRY_COUNT);
     this.instance = this.getString(INSTANCE_CONF);
     this.curlLogging = this.getBoolean(CURL_LOGGING_CONF);
+    this.salesForceChangeEventEnable = this.getBoolean(SALESFORCE_CHANGE_EVENT_ENABLE_CONFIG);
+    this.salesForceObject = this.getString(SALESFORCE_OBJECT_CONF);
     this.salesForcePushTopicName = this.getString(SALESFORCE_PUSH_TOPIC_NAME_CONF);
     this.salesForcePushTopicCreate = this.getBoolean(SALESFORCE_PUSH_TOPIC_CREATE_CONF);
-    this.salesForceObject = this.getString(SALESFORCE_OBJECT_CONF);
-    this.connectTimeout = this.getLong(CONNECTION_TIMEOUT_CONF);
     this.salesForcePushTopicNotifyCreate = this.getBoolean(SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF);
     this.salesForcePushTopicNotifyUpdate = this.getBoolean(SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_CONF);
     this.salesForcePushTopicNotifyDelete = this.getBoolean(SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_CONF);
     this.salesForcePushTopicNotifyUndelete = this.getBoolean(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF);
-    this.version = this.getString(VERSION_CONF);
-    this.kafkaTopicLowerCase = getBoolean(KAFKA_TOPIC_LOWERCASE_CONF);
-    this.kafkaTopic = this.getString(KAFKA_TOPIC_CONF);
     this.sfdcTopicQueryFields = this.getString(SFDC_QUERY_FIELDS_CONF);
-    this.authenticationUrl = this.getString(SFDC_AUTH_URL);
-    this.wait_in_ms=this.getLong(SFDC_CONNECT_WAIT_MS);
-    this.maxRetryCount=this.getInt(SFDC_CONNECT_MAX_RETRY_COUNT);
+    if (!this.salesForceChangeEventEnable) {
+      this.salesForceChannel = String.format("/topic/%s", this.salesForcePushTopicName);
+    } else {
+      this.salesForceChannel = this.getString(SALESFORCE_CHANNEL_CONF);
+    }
+    this.version = this.getString(VERSION_CONF);
+    this.kafkaTopicLowerCase = this.getBoolean(KAFKA_TOPIC_LOWERCASE_CONF);
+    this.kafkaTopic = this.getString(KAFKA_TOPIC_CONF);
+    this.enableSchemas = this.getBoolean(SCHEMAS_ENABLE_CONFIG);
+
     StructTemplate template = new StructTemplate();
     template.addTemplate(TEMPLATE_NAME, kafkaTopic);
     this.kafkaTopicTemplate = template;
@@ -117,17 +136,20 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
         .define(CONSUMER_SECRET_CONF, Type.PASSWORD, Importance.HIGH, CONSUMER_SECRET_DOC)
         .define(INSTANCE_CONF, Type.STRING, "", Importance.HIGH, INSTANCE_DOC)
         .define(CURL_LOGGING_CONF, Type.BOOLEAN, false, Importance.LOW, CURL_LOGGING_DOC)
-        .define(SALESFORCE_OBJECT_CONF, Type.STRING, Importance.HIGH, SALESFORCE_OBJECT_DOC)
+        .define(SALESFORCE_OBJECT_CONF, Type.STRING, "", Importance.HIGH, SALESFORCE_OBJECT_DOC)
         .define(KAFKA_TOPIC_CONF, Type.STRING, Importance.HIGH, KAFKA_TOPIC_DOC)
         .define(KAFKA_TOPIC_LOWERCASE_CONF, Type.BOOLEAN, true, Importance.HIGH, KAFKA_TOPIC_LOWERCASE_DOC)
+        .define(SCHEMAS_ENABLE_CONFIG, Type.BOOLEAN, SCHEMAS_ENABLE_DEFAULT, Importance.LOW, SCHEMAS_ENABLE_CONFIG_DOC)
         .define(CONNECTION_TIMEOUT_CONF, Type.LONG, 30000L, ConfigDef.Range.between(5 * 1000L, 600 * 1000L), Importance.LOW, CONNECTION_TIMEOUT_DOC)
         .define(VERSION_CONF, Type.STRING, "latest", ValidPattern.of("^(latest|[\\d\\.]+)$"), Importance.LOW, VERSION_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NAME_CONF, Type.STRING, Importance.HIGH, SALESFORCE_PUSH_TOPIC_NAME_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_CREATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_CREATE_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_DOC)
-        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF, Type.BOOLEAN, true, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC)
+        .define(SALESFORCE_CHANGE_EVENT_ENABLE_CONFIG, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_CHANGE_EVENT_ENABLE_CONFIG_DOC)
+        .define(SALESFORCE_CHANNEL_CONF, Type.STRING, "", Importance.LOW, SALESFORCE_CHANNEL_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_NAME_CONF, Type.STRING, "", Importance.HIGH, SALESFORCE_PUSH_TOPIC_NAME_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_CREATE_CONF, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_PUSH_TOPIC_CREATE_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_CONF, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_CREATE_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_CONF, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UPDATE_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_CONF, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_DELETE_DOC)
+        .define(SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_CONF, Type.BOOLEAN, false, Importance.LOW, SALESFORCE_PUSH_TOPIC_NOTIFY_UNDELETE_DOC)
         .define(SFDC_QUERY_FIELDS_CONF, Type.STRING,"", Importance.LOW, SFDC_QUERY_FIELDS_DOC)
         .define(SFDC_AUTH_URL, Type.STRING,"https://login.salesforce.com/services/oauth2/token", Importance.LOW, SFDC_AUTH_URL_DOC)
         .define(SFDC_CONNECT_WAIT_MS, Type.LONG,60000L, Importance.LOW, SFDC_CONNECT_WAIT_MS_DOC)
@@ -144,6 +166,8 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public final String instance;
   public final boolean curlLogging;
   public final StructTemplate kafkaTopicTemplate;
+  public final String salesForceChannel;
+  public final boolean salesForceChangeEventEnable;
   public final String salesForcePushTopicName;
   public final boolean salesForcePushTopicCreate;
   public final String salesForceObject;
@@ -159,4 +183,5 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public final long wait_in_ms;
   public final int maxRetryCount;
   public final String kafkaTopic;
+  public final boolean enableSchemas;
 }

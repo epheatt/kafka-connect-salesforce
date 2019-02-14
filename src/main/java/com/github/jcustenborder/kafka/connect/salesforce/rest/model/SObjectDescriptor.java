@@ -487,6 +487,10 @@ public class SObjectDescriptor {
     @Key("relationshipOrder")
     String relationshipOrder;
 
+    //"polymorphicForeignKey": false,
+    @Key("polymorphicForeignKey")
+    Boolean polymorphicForeignKey;
+
     //"restrictedDelete": false,
     @Key("restrictedDelete")
     Boolean restrictedDelete;
@@ -867,6 +871,10 @@ public class SObjectDescriptor {
     public void relationshipOrder(String relationshipOrder) {
       this.relationshipOrder = relationshipOrder;
     }
+
+    public Boolean polymorphicForeignKey() { return this.polymorphicForeignKey; }
+
+    public void polymorphicForeignKey(Boolean polymorphicForeignKey) { this.polymorphicForeignKey = polymorphicForeignKey; }
 
     public Boolean restrictedDelete() {
       return this.restrictedDelete;

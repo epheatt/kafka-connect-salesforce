@@ -58,7 +58,7 @@ public class SalesforceSourceConnector extends SourceConnector {
     List<ApiVersion> apiVersions = client.apiVersions();
     ApiVersion apiVersion = apiVersions.get(0);
     client.apiVersion(apiVersion);
-
+    if (!config.salesForceChangeEventEnable) {
     SObjectsResponse sObjectsResponse = client.objects();
     SObjectMetadata sObjectMetadata = null;
     SObjectDescriptor sObjectDescriptor = null;
@@ -144,7 +144,7 @@ public class SalesforceSourceConnector extends SourceConnector {
     }
 
     Preconditions.checkNotNull(pushTopic, "PushTopic '%s' was not found.", this.config.salesForcePushTopicName);
-
+    }
     Map<String, String> taskSettings = new HashMap<>();
     taskSettings.putAll(map);
     taskSettings.put(SalesforceSourceConnectorConfig.VERSION_CONF, apiVersion.version());
