@@ -17,6 +17,7 @@ package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.utils.jackson.ObjectMapperFactory;
 import org.apache.kafka.common.utils.Time;
@@ -45,6 +46,20 @@ public class SObjectHelperTest {
     final Schema schema = SObjectHelper.valueSchema(descriptor);
     assertNotNull(schema);
     assertEquals("com.github.jcustenborder.kafka.connect.salesforce.Lead", schema.name());
+  }
+
+  @Test
+  public void testConvertSchemaless() throws JsonProcessingException {
+    Map<String, String> settings = TestData.settings();
+    settings.put(SalesforceSourceConnectorConfig.SCHEMAS_ENABLE_CONFIG,"false");
+    final SalesforceSourceConnectorConfig config = new SalesforceSourceConnectorConfig(settings);
+    final SObjectDescriptor descriptor = TestData.sObjectDescriptor();
+    final Schema keySchema = SObjectHelper.keySchema(descriptor);
+    final Schema valueSchema = SObjectHelper.valueSchema(descriptor);
+    SObjectHelper helper = new SObjectHelper(config, keySchema, valueSchema);
+    JsonNode jsonNode = TestData.salesForceEvent();
+    SourceRecord sr = helper.convert(jsonNode);
+    assertNotNull(sr.value());
   }
 
   @Test

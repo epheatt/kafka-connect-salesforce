@@ -46,6 +46,8 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public static final String KAFKA_TOPIC_LOWERCASE_CONF = "kafka.topic.lowercase";
   public static final String KAFKA_TOPIC_CONF = "kafka.topic";
 
+  public static final String SCHEMAS_ENABLE_CONFIG = "schemas.enable";
+  public static final boolean SCHEMAS_ENABLE_DEFAULT = true;
   public static final String CONNECTION_TIMEOUT_CONF = "connection.timeout";
   public static final String SFDC_QUERY_FIELDS_CONF = "salesforce.topic.query.fields";
   public static final String SFDC_AUTH_URL = "authenticationUrl";
@@ -74,6 +76,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
       "`" + SObjectHelper.FIELD_EVENT_TYPE + "` and `" + SObjectHelper.FIELD_OBJECT_TYPE + "` are two metadata fields that " +
       "are included on every record. For example you could put update and deletes in a different topic by using `salesforce.${_ObjectType}.${_EventType}`";
   static final String KAFKA_TOPIC_LOWERCASE_DOC = "Flag to determine if the kafka topic should be lowercased.";
+  static final String SCHEMAS_ENABLE_CONFIG_DOC = "Include schemas within each of the serialized values and keys.";
   static final String SFDC_QUERY_FIELDS_DOC = "Salesforce topic query fields.";
   static final String SFDC_AUTH_URL_DOC = "Salesforce url to which authentication will happen";
   static final String SFDC_CONNECT_WAIT_MS_DOC = "Waits for this BayeuxClient to reach the given state(s) within the given time.";
@@ -103,6 +106,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
     this.authenticationUrl = this.getString(SFDC_AUTH_URL);
     this.wait_in_ms=this.getLong(SFDC_CONNECT_WAIT_MS);
     this.maxRetryCount=this.getInt(SFDC_CONNECT_MAX_RETRY_COUNT);
+    this.enableSchemas = this.getBoolean(SCHEMAS_ENABLE_CONFIG);
     StructTemplate template = new StructTemplate();
     template.addTemplate(TEMPLATE_NAME, kafkaTopic);
     this.kafkaTopicTemplate = template;
@@ -120,6 +124,7 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
         .define(SALESFORCE_OBJECT_CONF, Type.STRING, Importance.HIGH, SALESFORCE_OBJECT_DOC)
         .define(KAFKA_TOPIC_CONF, Type.STRING, Importance.HIGH, KAFKA_TOPIC_DOC)
         .define(KAFKA_TOPIC_LOWERCASE_CONF, Type.BOOLEAN, true, Importance.HIGH, KAFKA_TOPIC_LOWERCASE_DOC)
+        .define(SCHEMAS_ENABLE_CONFIG, Type.BOOLEAN, SCHEMAS_ENABLE_DEFAULT, Importance.LOW, SCHEMAS_ENABLE_CONFIG_DOC)
         .define(CONNECTION_TIMEOUT_CONF, Type.LONG, 30000L, ConfigDef.Range.between(5 * 1000L, 600 * 1000L), Importance.LOW, CONNECTION_TIMEOUT_DOC)
         .define(VERSION_CONF, Type.STRING, "latest", ValidPattern.of("^(latest|[\\d\\.]+)$"), Importance.LOW, VERSION_DOC)
         .define(SALESFORCE_PUSH_TOPIC_NAME_CONF, Type.STRING, Importance.HIGH, SALESFORCE_PUSH_TOPIC_NAME_DOC)
@@ -159,4 +164,5 @@ public class SalesforceSourceConnectorConfig extends AbstractConfig {
   public final long wait_in_ms;
   public final int maxRetryCount;
   public final String kafkaTopic;
+  public final boolean enableSchemas;
 }

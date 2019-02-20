@@ -54,7 +54,7 @@ public class TestData {
     settings.put(SalesforceSourceConnectorConfig.PASSWORD_TOKEN_CONF, "sdfasdfasd");
     settings.put(SalesforceSourceConnectorConfig.SALESFORCE_OBJECT_CONF, "Lead");
     settings.put(SalesforceSourceConnectorConfig.USERNAME_CONF, "Lead");
-    settings.put(SalesforceSourceConnectorConfig.KAFKA_TOPIC_CONF, "salesforce.${__ObjectType}");
+    settings.put(SalesforceSourceConnectorConfig.KAFKA_TOPIC_CONF, "salesforce.${_ObjectType}");
     settings.put(SalesforceSourceConnectorConfig.SALESFORCE_PUSH_TOPIC_NAME_CONF, "Testing");
     return settings;
   }

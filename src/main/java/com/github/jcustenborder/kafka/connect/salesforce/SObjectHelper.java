@@ -16,6 +16,9 @@
 package com.github.jcustenborder.kafka.connect.salesforce;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.jcustenborder.kafka.connect.salesforce.rest.model.SObjectDescriptor;
 import com.github.jcustenborder.kafka.connect.utils.data.Parser;
 import com.github.jcustenborder.kafka.connect.utils.data.type.TimestampTypeParser;
@@ -44,6 +47,7 @@ class SObjectHelper {
 	static final Map<String, ?> SOURCE_PARTITIONS = new HashMap<>();
 	private static final Logger log = LoggerFactory.getLogger(SObjectHelper.class);
 
+	private static final ObjectMapper mapper = new ObjectMapper();
 	final SalesforceSourceConnectorConfig config;
 	final Schema keySchema;
 	final Schema valueSchema;
@@ -296,16 +300,17 @@ class SObjectHelper {
 
 
 
-	public SourceRecord convert(JsonNode jsonNode) {
+	public SourceRecord convert(JsonNode jsonNode) throws JsonProcessingException {
 		Preconditions.checkNotNull(jsonNode);
 		Preconditions.checkState(jsonNode.isObject());
 		JsonNode dataNode = jsonNode.get("data");
 		JsonNode eventNode = dataNode.get("event");
-		JsonNode sobjectNode = dataNode.get("sobject");
 		final long replayId = eventNode.get("replayId").asLong();
+		Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
 		final String eventType = eventNode.get("type").asText();
 		Struct keyStruct = new Struct(keySchema);
 		Struct valueStruct = new Struct(valueSchema);
+		JsonNode sobjectNode = dataNode.get("sobject");
 		convertStruct(sobjectNode, keySchema, keyStruct);
 		convertStruct(sobjectNode, valueSchema, valueStruct);
 		valueStruct.put(FIELD_OBJECT_TYPE, this.config.salesForceObject);
@@ -316,9 +321,19 @@ class SObjectHelper {
 		if (this.config.kafkaTopicLowerCase) {
 			topic = topic.toLowerCase();
 		}
-		Map<String, Long> sourceOffset = ImmutableMap.of("replayId", replayId);
-		return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct,
-				this.valueSchema, valueStruct, this.time.milliseconds());
+		if (this.config.enableSchemas) {
+			return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null, this.keySchema, keyStruct,
+					this.valueSchema, valueStruct, this.time.milliseconds());
+		} else {
+			ObjectNode payload = mapper.createObjectNode();
+			payload.set("sobject", dataNode.get("sobject"));
+			ObjectNode event = (ObjectNode) dataNode.get("event");
+			event.put("entityName", this.config.salesForceObject);
+			payload.set("event", event);
+			return new SourceRecord(SOURCE_PARTITIONS, sourceOffset, topic, null,
+                    Schema.STRING_SCHEMA, keyStruct.getString("Id"),
+                    Schema.STRING_SCHEMA, mapper.writeValueAsString(payload), this.time.milliseconds());
+		}
 	}
 
 }
